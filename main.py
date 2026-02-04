@@ -16,8 +16,9 @@ from dotenv import load_dotenv
 # Load environment variables first
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.models import ChatRequest, ChatResponse
 from app.session_manager import session_manager
@@ -49,6 +50,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# API Key Authentication Middleware
+@app.middleware("http")
+async def api_key_middleware(request: Request, call_next):
+    """Validate x-api-key header for protected endpoints."""
+    # Allow health check and root without authentication
+    if request.url.path in ["/", "/health", "/docs", "/openapi.json"]:
+        return await call_next(request)
+    
+    # Get API key from environment
+    expected_api_key = os.getenv("API_KEY", "127128")
+    
+    # Get API key from header
+    api_key = request.headers.get("x-api-key")
+    
+    if not api_key:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"error": "Missing x-api-key header", "status": "unauthorized"}
+        )
+    
+    if api_key != expected_api_key:
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"error": "Invalid API key", "status": "forbidden"}
+        )
+    
+    return await call_next(request)
 
 
 async def send_callback_background(session_id: str, callback_data: dict):
