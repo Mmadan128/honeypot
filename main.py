@@ -112,7 +112,7 @@ async def send_callback_background(session_id: str, callback_data: dict):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(
-    request: ChatRequest, 
+    raw_request: Request,
     background_tasks: BackgroundTasks
 ) -> ChatResponse:
     """
@@ -131,40 +131,56 @@ async def chat_endpoint(
         - If enough intelligence is gathered, triggers a background callback to GUVI
     """
     try:
-        # Log incoming request
-        print(f"📨 Received message from session: {request.sessionId}")
+        # Parse request body manually for better error handling
+        body = await raw_request.json()
+        print(f"📨 Received request: {body}")
+        
+        # Extract required fields
+        session_id = body.get("sessionId") or body.get("session_id")
+        message = body.get("message")
+        
+        if not session_id:
+            raise HTTPException(status_code=422, detail="Missing required field: sessionId")
+        if not message:
+            raise HTTPException(status_code=422, detail="Missing required field: message")
         
         # Get or create agent for this session
-        agent = session_manager.get_or_create_agent(request.sessionId)
+        agent = session_manager.get_or_create_agent(session_id)
         
         # Convert history to dict format (handle both dict and model format)
+        conversation_history = body.get("conversationHistory", [])
         history = []
-        for msg in (request.conversationHistory or []):
-            if isinstance(msg, dict):
-                history.append(msg)
-            else:
-                history.append({"role": msg.role, "content": msg.content})
+        if conversation_history:
+            for msg in conversation_history:
+                if isinstance(msg, dict):
+                    history.append(msg)
+                else:
+                    history.append({"role": getattr(msg, "role", "scammer"), "content": getattr(msg, "content", "")})
         
         # Process the message and get response
-        reply = agent.process_message(request.message, history)
+        reply = agent.process_message(message, history)
         
         # Check if we should trigger the callback
         if agent.should_trigger_callback():
             callback_data = agent.get_callback_data()
-            print(f"🎯 Triggering callback for session {request.sessionId}")
+            print(f"🎯 Triggering callback for session {session_id}")
             print(f"   Intelligence: {callback_data['extractedIntelligence']}")
             
             # Send callback in background (non-blocking)
             background_tasks.add_task(
                 send_callback_background, 
-                request.sessionId, 
+                session_id, 
                 callback_data
             )
         
         return ChatResponse(status="success", reply=reply)
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"❌ Error processing message: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500, 
             detail=f"Error processing message: {str(e)}"
