@@ -83,8 +83,12 @@ class IntelligenceExtractor:
     def extract_from_history(self, history: List[dict]) -> ExtractedIntelligence:
         """Extract intelligence from entire conversation history."""
         for msg in history:
-            if msg.get('role') == 'scammer':
-                self.extract_from_message(msg.get('content', ''))
+            # Support both 'role'/'content' and 'sender'/'text' formats
+            role = msg.get('role') or msg.get('sender')
+            text = msg.get('content') or msg.get('text', '')
+            
+            if role in ['scammer', 'user']:
+                self.extract_from_message(text)
         return self.extracted
     
     def has_valuable_intel(self) -> bool:
