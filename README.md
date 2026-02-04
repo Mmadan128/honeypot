@@ -105,8 +105,47 @@ View active session count.
 5. Add environment variables:
    - `GROQ_API_KEY` or `GOOGLE_API_KEY`
    - `LLM_PROVIDER` = `groq` or `gemini`
+   - `API_KEY` = `127128` (or your GUVI-provided key)
    - `GUVI_CALLBACK_URL` = Your GUVI evaluation URL
 6. Deploy!
+
+## 🧪 GUVI Endpoint Tester Configuration
+
+Once deployed on Render, configure GUVI's endpoint tester:
+
+**Headers:**
+```
+x-api-key: 127128
+```
+
+**Honeypot API Endpoint URL:**
+```
+https://your-app.onrender.com/chat
+```
+
+**Expected Request Format:**
+```json
+{
+  "sessionId": "unique-session-id",
+  "message": "Scammer's message",
+  "conversationHistory": []  // Optional
+}
+```
+
+**Expected Response Format:**
+```json
+{
+  "status": "success",
+  "reply": "Agent's response pretending to be a victim"
+}
+```
+
+### Testing Your Deployed Endpoint
+
+```bash
+# Test with GUVI format
+python test_guvi_format.py
+```
 
 ## 📋 GUVI Callback Format
 
