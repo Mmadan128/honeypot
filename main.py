@@ -19,6 +19,8 @@ load_dotenv()
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 
 from app.models import ChatRequest, ChatResponse
 from app.session_manager import session_manager
@@ -50,6 +52,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Validation Error Handler
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle request validation errors with detailed error messages."""
+    errors = exc.errors()
+    print(f"❌ Validation Error: {errors}")
+    print(f"   Body: {await request.body()}")
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": "INVALID_REQUEST_BODY",
+            "status": "validation_failed",
+            "details": errors,
+            "expected_format": {
+                "sessionId": "string (required)",
+                "message": "string (required)",
+                "conversationHistory": "array (optional)"
+            }
+        }
+    )
 
 # API Key Authentication Middleware
 @app.middleware("http")
@@ -108,14 +131,19 @@ async def chat_endpoint(
         - If enough intelligence is gathered, triggers a background callback to GUVI
     """
     try:
+        # Log incoming request
+        print(f"📨 Received message from session: {request.sessionId}")
+        
         # Get or create agent for this session
         agent = session_manager.get_or_create_agent(request.sessionId)
         
-        # Convert history to dict format
-        history = [
-            {"role": msg.role, "content": msg.content}
-            for msg in (request.conversationHistory or [])
-        ]
+        # Convert history to dict format (handle both dict and model format)
+        history = []
+        for msg in (request.conversationHistory or []):
+            if isinstance(msg, dict):
+                history.append(msg)
+            else:
+                history.append({"role": msg.role, "content": msg.content})
         
         # Process the message and get response
         reply = agent.process_message(request.message, history)

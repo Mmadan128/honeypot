@@ -1,6 +1,6 @@
 """Pydantic models for request/response handling."""
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Optional, Dict, Any, Union
 
 
 class ConversationMessage(BaseModel):
@@ -11,9 +11,12 @@ class ConversationMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     """Incoming request from GUVI's scammer bot."""
-    sessionId: str
-    message: str
-    conversationHistory: Optional[List[ConversationMessage]] = []
+    sessionId: str = Field(..., description="Unique session identifier")
+    message: str = Field(..., description="Scammer's message")
+    conversationHistory: Optional[List[Union[ConversationMessage, Dict[str, Any]]]] = Field(
+        default_factory=list,
+        description="Optional conversation history"
+    )
 
 
 class ChatResponse(BaseModel):
