@@ -7,6 +7,7 @@ import json
 import time
 
 BASE_URL = "http://localhost:8000"
+API_KEY = "127128"  # API key for authentication
 
 
 def test_conversation():
@@ -41,6 +42,7 @@ def test_conversation():
             response = httpx.post(
                 f"{BASE_URL}/chat",
                 json=payload,
+                headers={"x-api-key": API_KEY},
                 timeout=30.0
             )
             response.raise_for_status()
@@ -79,7 +81,10 @@ def test_health():
 def test_stats():
     """Test stats endpoint."""
     try:
-        response = httpx.get(f"{BASE_URL}/stats")
+        response = httpx.get(
+            f"{BASE_URL}/stats",
+            headers={"x-api-key": API_KEY}
+        )
         print(f"Stats: {response.json()}")
     except Exception as e:
         print(f"Stats failed: {e}")

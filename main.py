@@ -78,8 +78,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.middleware("http")
 async def api_key_middleware(request: Request, call_next):
     """Validate x-api-key header for protected endpoints."""
-    # Allow health check and root without authentication
-    if request.url.path in ["/", "/health", "/docs", "/openapi.json"]:
+    # Allow health check, stats, root, and docs without authentication
+    if request.url.path in ["/", "/health", "/stats", "/docs", "/openapi.json"]:
         return await call_next(request)
     
     # Get API key from environment
