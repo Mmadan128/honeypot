@@ -118,52 +118,60 @@ async def chat_endpoint(
     """
     Main chat endpoint - receives scammer messages and responds as a victim.
     
-    Request Body:
-        - sessionId: Unique identifier for this conversation
-        - message: The scammer's current message
-        - conversationHistory: List of previous messages (optional)
+    GUVI Request Format:
+        - sessionId: Unique identifier
+        - message: {sender, text, timestamp}
+        - conversationHistory: Array of previous messages
+        - metadata: {channel, language, locale}
     
     Response:
-        - status: "success" or "error"
-        - reply: The honeypot agent's response
-    
-    Side Effects:
-        - If enough intelligence is gathered, triggers a background callback to GUVI
+        - status: "success"
+        - reply: Agent's response
     """
     try:
-        # Parse request body manually for better error handling
+        # Parse request body
         body = await raw_request.json()
-        print(f"📨 Received request: {body}")
+        print(f"📨 Received GUVI request: {body}")
         
-        # Extract required fields
-        session_id = body.get("sessionId") or body.get("session_id")
-        message = body.get("message")
+        # Extract fields (handle both GUVI format and test format)
+        session_id = body.get("sessionId")
         
-        if not session_id:
-            raise HTTPException(status_code=422, detail="Missing required field: sessionId")
-        if not message:
-            raise HTTPException(status_code=422, detail="Missing required field: message")
+        # Handle GUVI message format: {"sender": "scammer", "text": "...", "timestamp": ...}
+        message_obj = body.get("message")
+        if isinstance(message_obj, dict):
+            message_text = message_obj.get("text", "")
+        elif isinstance(message_obj, str):
+            # Fallback for simple string format (for testing)
+            message_text = message_obj
+        else:
+            raise HTTPException(status_code=422, detail="Invalid message format")
+        
+        if not session_id or not message_text:
+            raise HTTPException(
+                status_code=422, 
+                detail="Missing required fields: sessionId and message"
+            )
         
         # Get or create agent for this session
         agent = session_manager.get_or_create_agent(session_id)
         
-        # Convert history to dict format (handle both dict and model format)
+        # Convert GUVI conversation history to internal format
         conversation_history = body.get("conversationHistory", [])
         history = []
-        if conversation_history:
-            for msg in conversation_history:
-                if isinstance(msg, dict):
-                    history.append(msg)
-                else:
-                    history.append({"role": getattr(msg, "role", "scammer"), "content": getattr(msg, "content", "")})
+        for msg in conversation_history:
+            sender = msg.get("sender", "scammer")
+            text = msg.get("text", "")
+            # Convert to internal format: role and content
+            role = "agent" if sender == "user" else "scammer"
+            history.append({"role": role, "content": text})
         
         # Process the message and get response
-        reply = agent.process_message(message, history)
+        reply = agent.process_message(message_text, history)
         
         # Check if we should trigger the callback
         if agent.should_trigger_callback():
             callback_data = agent.get_callback_data()
-            print(f"🎯 Triggering callback for session {session_id}")
+            print(f"🎯 Triggering GUVI callback for session {session_id}")
             print(f"   Intelligence: {callback_data['extractedIntelligence']}")
             
             # Send callback in background (non-blocking)
@@ -173,6 +181,7 @@ async def chat_endpoint(
                 callback_data
             )
         
+        # Return in GUVI expected format
         return ChatResponse(status="success", reply=reply)
         
     except HTTPException:

@@ -14,36 +14,82 @@ def test_endpoint():
     
     test_cases = [
         {
-            "name": "Minimal request (GUVI test format)",
+            "name": "GUVI Format - First message (no history)",
             "data": {
                 "sessionId": "test-session-001",
-                "message": "Hello, test message"
+                "message": {
+                    "sender": "scammer",
+                    "text": "Your bank account will be blocked today. Verify immediately.",
+                    "timestamp": 1770005528731
+                },
+                "conversationHistory": [],
+                "metadata": {
+                    "channel": "SMS",
+                    "language": "English",
+                    "locale": "IN"
+                }
             }
         },
         {
-            "name": "With empty conversation history",
+            "name": "GUVI Format - Second message (with history)",
             "data": {
                 "sessionId": "test-session-002",
-                "message": "Urgent: Your bill is unpaid",
-                "conversationHistory": []
+                "message": {
+                    "sender": "scammer",
+                    "text": "Share your UPI ID to avoid account suspension.",
+                    "timestamp": 1770005528731
+                },
+                "conversationHistory": [
+                    {
+                        "sender": "scammer",
+                        "text": "Your bank account will be blocked today. Verify immediately.",
+                        "timestamp": 1770005528731
+                    },
+                    {
+                        "sender": "user",
+                        "text": "Why will my account be blocked?",
+                        "timestamp": 1770005528731
+                    }
+                ],
+                "metadata": {
+                    "channel": "SMS",
+                    "language": "English",
+                    "locale": "IN"
+                }
             }
         },
         {
-            "name": "With conversation history (dict format)",
+            "name": "GUVI Format - UPI scam",
             "data": {
                 "sessionId": "test-session-003",
-                "message": "Send payment to scammer@upi",
-                "conversationHistory": [
-                    {"role": "scammer", "content": "Your account is blocked"},
-                    {"role": "agent", "content": "Oh no! What should I do?"}
-                ]
+                "message": {
+                    "sender": "scammer",
+                    "text": "Send payment to scammer@upi immediately",
+                    "timestamp": 1770005528731
+                },
+                "conversationHistory": [],
+                "metadata": {
+                    "channel": "WhatsApp",
+                    "language": "English",
+                    "locale": "IN"
+                }
             }
         },
         {
-            "name": "Scam detection test",
+            "name": "GUVI Format - Bank account scam",
             "data": {
                 "sessionId": "test-session-004",
-                "message": "Send 5000 INR to 9876543210 or we will disconnect your power"
+                "message": {
+                    "sender": "scammer",
+                    "text": "Send 5000 INR to account 9876543210 or we will disconnect your power",
+                    "timestamp": 1770005528731
+                },
+                "conversationHistory": [],
+                "metadata": {
+                    "channel": "SMS",
+                    "language": "English",
+                    "locale": "IN"
+                }
             }
         }
     ]

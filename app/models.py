@@ -1,21 +1,40 @@
 """Pydantic models for request/response handling."""
-from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Dict, Any, Union
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
+
+
+class Message(BaseModel):
+    """Message structure from GUVI."""
+    sender: str  # "scammer" or "user"
+    text: str
+    timestamp: int  # Epoch time in ms
+
+
+class Metadata(BaseModel):
+    """Optional metadata about the conversation."""
+    channel: Optional[str] = "SMS"
+    language: Optional[str] = "English"
+    locale: Optional[str] = "IN"
 
 
 class ConversationMessage(BaseModel):
-    """Single message in conversation history."""
-    role: str  # "scammer" or "agent"
-    content: str
+    """Message in conversation history."""
+    sender: str
+    text: str
+    timestamp: int
 
 
 class ChatRequest(BaseModel):
-    """Incoming request from GUVI's scammer bot."""
+    """Incoming request from GUVI's platform."""
     sessionId: str = Field(..., description="Unique session identifier")
-    message: str = Field(..., description="Scammer's message")
-    conversationHistory: Optional[List[Union[ConversationMessage, Dict[str, Any]]]] = Field(
+    message: Message = Field(..., description="Current incoming message")
+    conversationHistory: List[ConversationMessage] = Field(
         default_factory=list,
-        description="Optional conversation history"
+        description="Previous messages in this session"
+    )
+    metadata: Optional[Metadata] = Field(
+        default=None,
+        description="Optional metadata"
     )
 
 
