@@ -19,7 +19,7 @@ def get_llm(provider: Optional[str] = None) -> BaseChatModel:
     if provider.lower() == "groq":
         from langchain_groq import ChatGroq
         return ChatGroq(
-            model="llama-3.1-70b-versatile",  # Fast and free
+            model="llama-3.3-70b-versatile",  # Latest model (updated Dec 2024)
             temperature=0.7,
             max_tokens=256,
             api_key=os.getenv("GROQ_API_KEY")
