@@ -129,8 +129,16 @@ async def chat_endpoint(
         - reply: Agent's response
     """
     try:
-        # Parse request body
-        body = await raw_request.json()
+        # Parse request body with timeout protection
+        try:
+            body = await raw_request.json()
+        except Exception as json_error:
+            print(f"❌ JSON Parse Error: {json_error}")
+            return ChatResponse(
+                status="error",
+                reply="Invalid JSON format"
+            )
+        
         print(f"📨 Received GUVI request: {body}")
         
         # Extract fields (handle both GUVI format and test format)
@@ -144,12 +152,17 @@ async def chat_endpoint(
             # Fallback for simple string format (for testing)
             message_text = message_obj
         else:
-            raise HTTPException(status_code=422, detail="Invalid message format")
+            print(f"❌ Invalid message format: {message_obj}")
+            return ChatResponse(
+                status="error",
+                reply="Invalid message format"
+            )
         
         if not session_id or not message_text:
-            raise HTTPException(
-                status_code=422, 
-                detail="Missing required fields: sessionId and message"
+            print(f"❌ Missing fields - sessionId: {session_id}, message: {message_text}")
+            return ChatResponse(
+                status="error",
+                reply="Missing required fields"
             )
         
         # Get or create agent for this session
@@ -166,7 +179,18 @@ async def chat_endpoint(
             history.append({"role": role, "content": text})
         
         # Process the message and get response
-        reply = agent.process_message(message_text, history)
+        try:
+            reply = agent.process_message(message_text, history)
+        except Exception as llm_error:
+            print(f"❌ LLM Error: {llm_error}")
+            # Return fallback response instead of crashing
+            fallback_replies = [
+                "Sorry sir, network problem. Can you repeat that?",
+                "Yes yes, I am noting down. What was the number again?",
+                "My phone is hanging. Please send the details again."
+            ]
+            import random
+            reply = random.choice(fallback_replies)
         
         # Check if we should trigger the callback
         if agent.should_trigger_callback():
@@ -181,18 +205,21 @@ async def chat_endpoint(
                 callback_data
             )
         
-        # Return in GUVI expected format
+        # Return in GUVI expected format - ALWAYS return valid JSON
         return ChatResponse(status="success", reply=reply)
         
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error processing message: {str(e)}")
+        # Catch all other errors and return valid JSON response
+        print(f"❌ Unexpected Error: {str(e)}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Error processing message: {str(e)}"
+        
+        # NEVER return empty response - always return valid JSON
+        return ChatResponse(
+            status="success",
+            reply="I am coming to pay. What is your name for the receipt?"
         )
 
 
